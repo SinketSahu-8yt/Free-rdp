@@ -1,19 +1,37 @@
-name: Mobile-RDP-Cloudflare
-on: workflow_dispatch
+name: Mobile-RDP-Cloudflare-Updated
+
+on: 
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: windows-latest
     steps:
-    - name: Setup RDP
+    - name: 1. Download and Install Cloudflared
       run: |
+        # Cloudflared MSI download karna
+        Invoke-WebRequest https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.msi -OutFile cloudflared.msi
+        # Quiet mode mein install karna
+        Start-Process msiexec.exe -ArgumentList '/i cloudflared.msi /quiet /norestart' -Wait
+
+    - name: 2. Enable RDP and Setup User
+      run: |
+        # RDP settings on karna
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+        
+        # User details (Username: FreeUser | Password: Bhai@123456)
         $Password = ConvertTo-SecureString "Bhai@123456" -AsPlainText -Force
         New-LocalUser "FreeUser" -Password $Password -Description "Admin"
         Add-LocalGroupMember -Group "Administrators" -Member "FreeUser"
-    - name: Start Cloudflare Tunnel
+        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "FreeUser"
+
+    - name: 3. Start Tunnel and Get Link
       run: |
-        Invoke-WebRequest https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.msi -OutFile cloudflared.msi
-        Start-Process msiexec.exe -ArgumentList '/i cloudflared.msi /quiet /norestart' -Wait
-        cloudflared tunnel --url tcp://localhost:3389
+        Write-Host "--- RDP CONNECTION DETAILS ---"
+        Write-Host "Username: FreeUser"
+        Write-Host "Password: Bhai@123456"
+        Write-Host "-----------------------------"
+        # Direct path use karke tunnel start karna (Error fix)
+        & "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url tcp://localhost:3389
