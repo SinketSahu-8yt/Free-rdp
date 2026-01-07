@@ -1,0 +1,19 @@
+name: Mobile-RDP-Cloudflare
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - name: Setup RDP
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+        $Password = ConvertTo-SecureString "Bhai@123456" -AsPlainText -Force
+        New-LocalUser "FreeUser" -Password $Password -Description "Admin"
+        Add-LocalGroupMember -Group "Administrators" -Member "FreeUser"
+    - name: Start Cloudflare Tunnel
+      run: |
+        Invoke-WebRequest https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.msi -OutFile cloudflared.msi
+        Start-Process msiexec.exe -ArgumentList '/i cloudflared.msi /quiet /norestart' -Wait
+        cloudflared tunnel --url tcp://localhost:3389
